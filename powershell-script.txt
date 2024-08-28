@@ -39,7 +39,7 @@ Drive: $($disk.Name)
  - Used Space: $($disk.UsedSpaceGB) GB
  - Total Space: $($disk.TotalSpaceGB) GB
  - Free Space Percentage: $($disk.FreeSpacePercent)%
-"
+"@
 }
 
 # Save the report to a file on the user's Desktop
