@@ -1,74 +1,92 @@
 import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
 public class PowerShellScriptValidator {
 
     public static void main(String[] args) {
-        // Path to the PowerShell script (.ps1 file)
-        String scriptPath = "C:\\path\\to\\your\\SystemResourceMonitor.ps1"; // Update this path
+        try {
+            // Define the PowerShell script path
+            String scriptPath = "C:\\path\\to\\SystemResourceMonitor.ps1"; // Update this path to your PowerShell script location
 
-        // Read and execute each command from the PowerShell script
-        try (BufferedReader br = new BufferedReader(new FileReader(scriptPath))) {
-            String command;
-            int step = 1;
+            // Execute the PowerShell script
+            ProcessBuilder processBuilder = new ProcessBuilder("powershell.exe", "-File", scriptPath);
+            processBuilder.redirectErrorStream(true);
+            Process process = processBuilder.start();
+
+            // Read the output of the script
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line;
+            StringBuilder output = new StringBuilder();
             
-            while ((command = br.readLine()) != null) {
-                if (!command.trim().isEmpty()) {  // Skip empty lines
-                    System.out.println("Executing Step " + step + ": " + command);
-                    executePowerShellCommand(command);
-                    step++;
-                }
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
             }
-        } catch (IOException e) {
-            System.out.println("An error occurred while reading the PowerShell script file.");
+
+            // Wait for the process to complete
+            int exitCode = process.waitFor();
+
+            // Validate the execution
+            if (exitCode == 0) {
+                System.out.println("PowerShell script executed successfully.");
+                System.out.println("Output:");
+                System.out.println(output.toString());
+                
+                // Check if the report file exists
+                String desktopPath = System.getProperty("user.home") + "\\Desktop";
+                String reportFilePath = desktopPath + "\\SystemReport.txt";
+                File reportFile = new File(reportFilePath);
+                
+                if (reportFile.exists()) {
+                    System.out.println("Report file 'SystemReport.txt' exists on the Desktop.");
+
+                    // Read the content of the report file
+                    List<String> reportLines = Files.readAllLines(Paths.get(reportFilePath));
+                    validateReportContent(reportLines);
+                } else {
+                    System.out.println("Report file 'SystemReport.txt' not found on the Desktop.");
+                }
+                
+            } else {
+                System.out.println("PowerShell script execution failed with exit code: " + exitCode);
+                System.out.println("Output:");
+                System.out.println(output.toString());
+            }
+
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
 
-    private static void executePowerShellCommand(String command) {
-        try {
-            // Construct the PowerShell command
-            String fullCommand = "powershell.exe -Command \"" + command + "\"";
+    private static void validateReportContent(List<String> reportLines) {
+        // Check if the report contains specific keywords indicating correct output
+        boolean cpuUsageFound = false;
+        boolean memoryUsageFound = false;
+        boolean diskSpaceInfoFound = false;
 
-            // Execute the command
-            Process powerShellProcess = Runtime.getRuntime().exec(fullCommand);
-
-            // Get the standard output
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(powerShellProcess.getInputStream()));
-            StringBuilder output = new StringBuilder();
-            String line;
-
-            // Read the output from the command
-            while ((line = stdInput.readLine()) != null) {
-                output.append(line).append("\n");
+        for (String line : reportLines) {
+            if (line.contains("CPU Usage")) {
+                cpuUsageFound = true;
             }
-
-            // Get the standard error
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(powerShellProcess.getErrorStream()));
-            StringBuilder errorOutput = new StringBuilder();
-
-            // Read the errors from the command, if any
-            while ((line = stdError.readLine()) != null) {
-                errorOutput.append(line).append("\n");
+            if (line.contains("Memory Usage")) {
+                memoryUsageFound = true;
             }
-
-            // Wait for the PowerShell process to complete
-            int exitCode = powerShellProcess.waitFor();
-
-            // Check the exit code and output
-            if (exitCode == 0 && errorOutput.length() == 0) {
-                System.out.println("Step executed successfully.");
-                System.out.println("Output:\n" + output);
-            } else {
-                System.out.println("Step execution failed.");
-                System.out.println("Error Output:\n" + errorOutput);
+            if (line.contains("Disk Space Information")) {
+                diskSpaceInfoFound = true;
             }
+        }
 
-        } catch (IOException | InterruptedException e) {
-            System.out.println("An error occurred while executing the PowerShell command.");
-            e.printStackTrace();
+        if (cpuUsageFound && memoryUsageFound && diskSpaceInfoFound) {
+            System.out.println("Report content validated successfully. All sections are present.");
+        } else {
+            System.out.println("Report content validation failed. Missing sections:");
+            if (!cpuUsageFound) System.out.println("- CPU Usage");
+            if (!memoryUsageFound) System.out.println("- Memory Usage");
+            if (!diskSpaceInfoFound) System.out.println("- Disk Space Information");
         }
     }
 }
