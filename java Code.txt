@@ -1,18 +1,39 @@
 import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
 
-public class PowerShellScriptExecutor {
+public class PowerShellScriptValidator {
+
     public static void main(String[] args) {
-        // Path to the PowerShell script
+        // Path to the PowerShell script (.ps1 file)
         String scriptPath = "C:\\path\\to\\your\\SystemResourceMonitor.ps1"; // Update this path
 
-        try {
-            // Construct the command to execute PowerShell script
-            String command = "powershell.exe -ExecutionPolicy Bypass -File \"" + scriptPath + "\"";
+        // Read and execute each command from the PowerShell script
+        try (BufferedReader br = new BufferedReader(new FileReader(scriptPath))) {
+            String command;
+            int step = 1;
+            
+            while ((command = br.readLine()) != null) {
+                if (!command.trim().isEmpty()) {  // Skip empty lines
+                    System.out.println("Executing Step " + step + ": " + command);
+                    executePowerShellCommand(command);
+                    step++;
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("An error occurred while reading the PowerShell script file.");
+            e.printStackTrace();
+        }
+    }
 
-            // Run the command
-            Process powerShellProcess = Runtime.getRuntime().exec(command);
+    private static void executePowerShellCommand(String command) {
+        try {
+            // Construct the PowerShell command
+            String fullCommand = "powershell.exe -Command \"" + command + "\"";
+
+            // Execute the command
+            Process powerShellProcess = Runtime.getRuntime().exec(fullCommand);
 
             // Get the standard output
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(powerShellProcess.getInputStream()));
@@ -37,16 +58,16 @@ public class PowerShellScriptExecutor {
             int exitCode = powerShellProcess.waitFor();
 
             // Check the exit code and output
-            if (exitCode == 0) {
-                System.out.println("PowerShell script executed successfully.");
+            if (exitCode == 0 && errorOutput.length() == 0) {
+                System.out.println("Step executed successfully.");
                 System.out.println("Output:\n" + output);
             } else {
-                System.out.println("PowerShell script execution failed.");
+                System.out.println("Step execution failed.");
                 System.out.println("Error Output:\n" + errorOutput);
             }
 
         } catch (IOException | InterruptedException e) {
-            System.out.println("An error occurred while executing the PowerShell script.");
+            System.out.println("An error occurred while executing the PowerShell command.");
             e.printStackTrace();
         }
     }
