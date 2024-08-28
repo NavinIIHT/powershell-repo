@@ -1,0 +1,48 @@
+# Define the output file path
+$desktopPath = [System.Environment]::GetFolderPath('Desktop')
+$outputFilePath = Join-Path -Path $desktopPath -ChildPath "SystemReport.txt"
+
+# Retrieve CPU usage
+$cpuUsage = Get-Counter '\Processor(_Total)\% Processor Time' | Select-Object -ExpandProperty CounterSamples | Select-Object -ExpandProperty CookedValue
+
+# Retrieve memory usage
+$memoryUsage = Get-Counter '\Memory\Available MBytes' | Select-Object -ExpandProperty CounterSamples | Select-Object -ExpandProperty CookedValue
+$totalMemory = (Get-CimInstance -ClassName Win32_ComputerSystem).TotalPhysicalMemory / 1MB
+$usedMemory = $totalMemory - $memoryUsage
+$memoryUsagePercentage = ($usedMemory / $totalMemory) * 100
+
+# Check disk space on all available drives
+$diskInfo = Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{Name="FreeSpaceGB";Expression={"{0:N2}" -f ($_.Free/1GB)}}, @{Name="UsedSpaceGB";Expression={"{0:N2}" -f (($_.Used)/1GB)}}, @{Name="TotalSpaceGB";Expression={"{0:N2}" -f ($_.Used + $_.Free/1GB)}}, @{Name="FreeSpacePercent";Expression={"{0:N2}" -f (($_.Free / ($_.Used + $_.Free)) * 100)}}
+
+# Create a report summarizing the system's current state
+$report = @"
+System Resource Report
+=======================
+
+CPU Usage: {0:N2}%
+
+Memory Usage: 
+ - Total Memory: {1:N2} MB
+ - Used Memory: {2:N2} MB
+ - Available Memory: {3:N2} MB
+ - Memory Usage Percentage: {4:N2}%
+
+Disk Space Information:
+"@
+
+$report = $report -f $cpuUsage, $totalMemory, $usedMemory, $memoryUsage, $memoryUsagePercentage
+
+foreach ($disk in $diskInfo) {
+    $report += @"
+Drive: $($disk.Name)
+ - Free Space: $($disk.FreeSpaceGB) GB
+ - Used Space: $($disk.UsedSpaceGB) GB
+ - Total Space: $($disk.TotalSpaceGB) GB
+ - Free Space Percentage: $($disk.FreeSpacePercent)%
+"
+}
+
+# Save the report to a file on the user's Desktop
+$report | Out-File -FilePath $outputFilePath -Encoding UTF8
+
+Write-Host "System report generated and saved to $outputFilePath"

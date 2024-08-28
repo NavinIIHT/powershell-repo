@@ -1,0 +1,53 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+
+public class PowerShellScriptExecutor {
+    public static void main(String[] args) {
+        // Path to the PowerShell script
+        String scriptPath = "C:\\path\\to\\your\\SystemResourceMonitor.ps1"; // Update this path
+
+        try {
+            // Construct the command to execute PowerShell script
+            String command = "powershell.exe -ExecutionPolicy Bypass -File \"" + scriptPath + "\"";
+
+            // Run the command
+            Process powerShellProcess = Runtime.getRuntime().exec(command);
+
+            // Get the standard output
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(powerShellProcess.getInputStream()));
+            StringBuilder output = new StringBuilder();
+            String line;
+
+            // Read the output from the command
+            while ((line = stdInput.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+
+            // Get the standard error
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(powerShellProcess.getErrorStream()));
+            StringBuilder errorOutput = new StringBuilder();
+
+            // Read the errors from the command, if any
+            while ((line = stdError.readLine()) != null) {
+                errorOutput.append(line).append("\n");
+            }
+
+            // Wait for the PowerShell process to complete
+            int exitCode = powerShellProcess.waitFor();
+
+            // Check the exit code and output
+            if (exitCode == 0) {
+                System.out.println("PowerShell script executed successfully.");
+                System.out.println("Output:\n" + output);
+            } else {
+                System.out.println("PowerShell script execution failed.");
+                System.out.println("Error Output:\n" + errorOutput);
+            }
+
+        } catch (IOException | InterruptedException e) {
+            System.out.println("An error occurred while executing the PowerShell script.");
+            e.printStackTrace();
+        }
+    }
+}
